@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日英语 · 口语打卡</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f4;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-secondary: #888888;
+            --accent-green: #4CAF50;
+            --accent-blue: #2196F3;
+            --accent-orange: #FF9800;
+            --border-color: #e0e0e0;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 500px; }
+        .card { background: var(--card-bg); border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h1, h2 { margin: 0 0 16px 0; font-weight: 600; }
+        h1 { font-size: 22px; text-align: center; }
+        h2 { font-size: 16px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;}
+        .progress-bar { height: 10px; background-color: #eee; border-radius: 5px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; width: 0%; background-color: var(--accent-green); transition: width 0.5s ease; }
+        .progress-text { text-align: center; font-size: 14px; color: var(--text-secondary); }
+
+        /* 日历 */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; text-align: center; }
+        .day { padding: 12px 0; border-radius: 8px; border: 1px solid var(--border-color); font-weight: bold; transition: all 0.2s; cursor: pointer; }
+        .day:hover { transform: scale(1.05); border-color: var(--accent-blue); }
+        .day.done { background-color: var(--accent-green); color: white; border-color: var(--accent-green); }
+        .day.today { border-width: 2px; border-color: var(--text-main); }
+        .day.selected { box-shadow: 0 0 0 3px var(--accent-blue); } /* 新增选中态 */
+        .day-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; }
+
+        /* 表单 */
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 8px; font-size: 14px; color: var(--text-secondary); }
+        input[type="date"], textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; font-size: 14px; }
+        textarea { height: 120px; resize: vertical; }
+
+        /* 详情展示区 (新增) */
+        .detail-box { background-color: #f9f9f9; border-radius: 8px; padding: 16px; margin-top: 15px; min-height: 60px; white-space: pre-wrap; word-break: break-word; font-size: 14px; line-height: 1.6; color: #555; }
+        
+        /* 按钮 */
+        .btn { width: 100%; padding: 14px; background-color: var(--text-main); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn:hover { opacity: 0.9; }
+        .btn-test { background-color: var(--accent-orange); }
+
+        /* 奖励弹窗 */
+        .reward-popup { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); text-align: center; z-index: 100; }
+        .reward-popup h2 { color: var(--accent-orange); font-size: 28px; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 1. 进度卡片 -->
+    <div class="card">
+        <h1>📚 英语口语打卡</h1>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <p class="progress-text" id="progressText">本周 0 / 5 天</p>
+    </div>
+
+    <!-- 2. 日历卡片 -->
+    <div class="card">
+        <h2>本周记录 (点击查看)</h2>
+        <div class="calendar-grid" id="calendar"></div>
+    </div>
+
+    <!-- 3. 补录/上传卡片 -->
+    <div class="card">
+        <h2>录入对话</h2>
+        <div class="input-group">
+            <label for="datePicker">选择日期</label>
+            <input type="date" id="datePicker">
+        </div>
+        <div class="input-group">
+            <label for="dialogueInput">对话内容</label>
+            <textarea id="dialogueInput" placeholder="粘贴你和元宝的英语对话..."></textarea>
+        </div>
+        <button class="btn" onclick="saveRecord()">保存记录</button>
+        <button class="btn btn-test" onclick="testReward()">🎁 测试奖励弹窗</button>
+    </div>
+
+    <!-- 4. 详情展示区 (新增) -->
+    <div class="card">
+        <h2 id="detailTitle">📄 详情</h2>
+        <div class="detail-box" id="detailBox">
+            点击上方日历中的日期，查看当天的对话记录。
+        </div>
+    </div>
+</div>
+
+<!-- 奖励弹窗 -->
+<div class="overlay" id="overlay"></div>
+<div class="reward-popup" id="rewardPopup">
+    <h2>🎉 恭喜！</h2>
+    <p>本周目标达成！<br>奖励一杯奶茶或休息一天吧！</p>
+    <button class="btn" onclick="closeReward()">好的</button>
+</div>
+
+<script>
+    const DAYS_WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+    let state = JSON.parse(localStorage.getItem('englishTracker')) || {};
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('datePicker').value = formatDate(new Date());
+        renderCalendar();
+    });
+
+    // 渲染日历 (增加点击事件)
+    function renderCalendar() {
+        const calendar = document.getElementById('calendar');
+        calendar.innerHTML = '';
+        const today = new Date();
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+
+        for (let i = 0; i < 7; i++) {
+            const currentDate = new Date(startOfWeek);
+            currentDate.setDate(startOfWeek.getDate() + i);
+            const dateStr = formatDate(currentDate);
+            
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'day';
+            if (state[dateStr]) dayDiv.classList.add('done');
+            if (formatDate(new Date()) === dateStr) dayDiv.classList.add('today');
+            
+            dayDiv.innerHTML = `<div class="day-label">${DAYS_WEEK[i]}</div>${currentDate.getDate()}`;
+            dayDiv.onclick = () => showDetail(dateStr, dayDiv); // 绑定点击事件
+            calendar.appendChild(dayDiv);
+        }
+        updateProgress();
+    }
+
+    // 显示详情 (新增函数)
+    function showDetail(dateStr, element) {
+        // 移除其他选中状态
+        document.querySelectorAll('.day').forEach(d => d.classList.remove('selected'));
+        // 添加当前选中状态
+        if(element) element.classList.add('selected');
+
+        const detailBox = document.getElementById('detailBox');
+        const detailTitle = document.getElementById('detailTitle');
+        
+        detailTitle.innerText = `📄 ${dateStr} 的对话`;
+        
+        if (state[dateStr]) {
+            detailBox.innerText = state[dateStr];
+        } else {
+            detailBox.innerText = "这一天还没有记录哦~";
+        }
+    }
+
+    // 更新进度
+    function updateProgress() {
+        const today = new Date();
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+
+        let count = 0;
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(startOfWeek);
+            d.setDate(startOfWeek.getDate() + i);
+            if (state[formatDate(d)]) count++;
+        }
+
+        document.getElementById('progressText').innerText = `本周 ${count} / 5 天`;
+        document.getElementById('progressFill').style.width = `${(count / 5) * 100}%`;
+
+        if (count >= 5 && !state.rewardGivenThisWeek) {
+            setTimeout(showReward, 300);
+            state.rewardGivenThisWeek = true;
+            localStorage.setItem('englishTracker', JSON.stringify(state));
+        }
+    }
+
+    // 保存记录
+    function saveRecord() {
+        const dateStr = document.getElementById('datePicker').value;
+        const dialogue = document.getElementById('dialogueInput').value.trim();
+
+        if (!dateStr || !dialogue) {
+            alert("请填写日期和内容！");
+            return;
+        }
+
+        state[dateStr] = dialogue;
+        localStorage.setItem('englishTracker', JSON.stringify(state));
+        
+        document.getElementById('dialogueInput').value = '';
+        renderCalendar();
+        showDetail(dateStr); // 保存后立即显示
+        alert(`已记录 ${dateStr} 的练习！`);
+    }
+
+    // 测试奖励
+    function testReward() {
+        const today = new Date();
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+        for (let i = 0; i < 5; i++) {
+            const d = new Date(startOfWeek);
+            d.setDate(startOfWeek.getDate() + i);
+            state[formatDate(d)] = "Test dialogue for reward.";
+        }
+        state.rewardGivenThisWeek = false;
+        localStorage.setItem('englishTracker', JSON.stringify(state));
+        renderCalendar();
+    }
+
+    // 奖励弹窗控制
+    function showReward() {
+        document.getElementById('rewardPopup').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+    }
+    function closeReward() {
+        document.getElementById('rewardPopup').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
+    }
+
+    // 工具函数
+    function formatDate(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+</script>
+</body>
+</html>
